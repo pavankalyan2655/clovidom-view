@@ -1,34 +1,65 @@
-# Account access UI
+# Clovidom Estates
 
-A React + TypeScript frontend for the existing authentication API. The same frontend can be deployed as a website and packaged as an Android app with Capacitor. It currently provides login and signup only.
+A React + TypeScript real-estate discovery frontend built with Vite. Users can discover published properties, filter and view listings, and send enquiries. Administrators can create and manage listings and upload property photographs through the backend.
 
-## Requirements
+## Local development
 
-- Node.js 24 LTS (checked locally: `v24.22.1`)
-- npm 11 or newer
+Requirements: Node.js 24 LTS and npm 11 or newer.
 
-## Web setup
+1. Start the Spring Boot API at `http://localhost:8080`.
+2. Install frontend packages with `npm install`.
+3. The included `.env.local` targets `http://localhost:8080`. Change `VITE_API_BASE_URL` when using a different backend.
+4. Start the frontend with `npm run dev` (Vite defaults to `http://localhost:5173`).
+5. Build with `npm run build`.
 
-Install dependencies with `npm install`. The included `.env.local` points the UI at the deployed Spring Boot backend at `https://tgmagazine-api.onrender.com`. Set `VITE_API_BASE_URL` in the hosting provider's build environment as well. The backend must allow the website's origin in Spring Security CORS; add the final deployed website URL to the backend's CORS allowlist before release.
+The backend must allow the frontend's origin in CORS. For the Render static site, set `VITE_API_BASE_URL` to `https://tgmagazine-api.onrender.com` in the Render environment and redeploy. `https://clovidom-view.onrender.com` is the frontend URL, not the API.
 
-Start the development server with `npm run dev`. Create a production build with `npm run build`.
+## Backend API contract
 
-## Android app
+The frontend expects these endpoints:
 
-The Android app and website share this React code; both call the same Spring Boot API. The Android package contains the built frontend, while the website remains available in a browser.
+### Authentication
 
-The Android Gradle wrapper is set to Gradle 9.1.0 so the project can build with Android Studio's bundled Java 25 runtime. The debug APK has been verified with Java 25.
+- `POST /api/auth/login` with `{ "email": "...", "password": "..." }`
+- `POST /api/auth/signup` with `{ "fullName": "...", "email": "...", "password": "..." }`
+- `GET /api/user/profile` with a Bearer JWT
 
-1. Deploy the Spring Boot API at a publicly reachable HTTPS URL. A phone's `localhost` refers to the phone, not your development computer.
-2. Set `VITE_API_BASE_URL` to that HTTPS API URL in the environment used to build the app.
-3. Install Android Studio and its Android SDK, then run `npm run android:sync` and `npm run android:open`. Use Android Studio to run the app or create a Play Store release.
-4. Before publishing, replace the provisional `appId` in `capacitor.config.ts` with an application ID owned by your startup. Application IDs should be chosen carefully because changing one later creates a different Play Store app.
+Login returns an `accessToken`, `authToken`, `token`, or `jwt`, and the user role (`ADMIN` or `USER`) either directly or in `data`. Signup must always create a `USER`; admin accounts are provisioned by the backend. The backend must enforce authorization for every admin operation.
 
-On Android, the JWT is stored through Android Keystore-backed encrypted storage. The website still uses `localStorage`; for a production web release, prefer an `HttpOnly`, `Secure`, `SameSite` cookie-based session implemented by the backend. A mobile wrapper alone does not secure the API: enforce authentication and authorization in Spring Boot, use HTTPS, and configure CORS for the website and mobile app.
+### User property experience
 
-## API contract
+- `GET /api/properties` supports `search`, `category`, `location`, `availability`, `minPrice`, `maxPrice`, and `sort` query parameters.
+- `GET /api/properties/{id}` returns property details, images, amenities, category-specific details, and contact/map information.
+- `POST /api/enquiries` accepts `propertyId`, `fullName`, `email`, `phone`, and `message`.
 
-- `POST /api/auth/login` receives `{ "email", "password" }`.
-- `POST /api/auth/signup` receives `{ "fullName", "email", "password" }`.
+Property responses should include `id`, `title`, `projectName`, `builder`, `category`, `location`, `startingPrice`, `maxPrice`, `availability`, `description`, `images`, `amenities`, and `details`. The client accepts list responses as an array or `{ "items": [...] }`, optionally wrapped in `data`.
 
-After login, the client stores a JWT found at `accessToken`, `token`, `jwt`, or the matching field inside `data` as `authToken`. It sends that token as a Bearer token to `GET /api/welcome` and `GET /api/user/profile`. The token storage is platform-specific: Android uses encrypted native storage, and the website uses local storage. Update `src/auth.ts` if your backend uses a different token response field. Server error messages from a JSON `message` field are displayed in the form.
+### Admin experience
+
+The admin dashboard displays counts from the property and enquiry endpoints. All admin endpoints require an admin Bearer JWT:
+
+- `GET /api/admin/properties` returns published and draft listings.
+- `POST /api/admin/properties` creates a property from the property form payload.
+- `PUT /api/admin/properties/{id}` updates a property.
+- `PATCH /api/admin/properties/{id}/publish` accepts `{ "published": true }` or `{ "published": false }`.
+- `DELETE /api/admin/properties/{id}` deletes a property.
+- `POST /api/admin/properties/{id}/images` accepts multiple `files` in `multipart/form-data`.
+- `DELETE /api/admin/properties/{id}/images/{imageId}` removes a photo.
+
+The admin dashboard and image gallery use these existing endpoints. Persistent photo reordering and cover-image selection are not available until the backend exposes corresponding operations; the frontend does not send undocumented requests.
+The property editor supports drag-and-drop and multi-file image selection, previews, removal, and reordering before upload. Existing uploaded photos can be removed from the editor or gallery.
+
+The admin form requires only a property title. Category and availability have defaults; other property fields may be blank and are sent as `null` (or `null` values within `details`). The backend DTO and database model should allow those optional fields to be null.
+
+Store photo binaries in cloud storage and return their public URLs and metadata from the API; do not put image binaries in MongoDB or expose cloud credentials in the frontend.
+
+## Android
+
+The web app and Android app share the React frontend and Spring Boot API. Android stores the JWT using the secure-storage plugin; the browser currently uses local storage. The Android display name is `Clovidom`. Build/sync the bundled Android app in PowerShell with the production API URL:
+
+```powershell
+$env:VITE_API_BASE_URL = 'https://tgmagazine-api.onrender.com'
+npm.cmd run android:sync
+```
+
+The backend must allow both `https://clovidom-view.onrender.com` and the Capacitor Android origin (`https://localhost`) in CORS. Protect all APIs in Spring Security regardless of client and use HTTPS outside local development. The provisional `appId` in `capacitor.config.ts` should be changed only if a new Android application identity is intended.

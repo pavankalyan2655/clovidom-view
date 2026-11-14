@@ -1,0 +1,16 @@
+Decorative background images
+
+These images are downloaded and served from this project's public/assets/backgrounds directory.
+They are not requested from Pexels or Unsplash at runtime. Pexels and Unsplash licenses allow
+free commercial use; attribution is not required. The source pages are included below for reference.
+
+Licenses:
+- Pexels: https://www.pexels.com/license/
+- Unsplash: https://unsplash.com/license
+
+Sources:
+- residential-01.jpg: https://www.pexels.com/photo/modern-high-rise-apartments-in-hyderabad-35764906/
+- residential-02.jpg: https://www.pexels.com/photo/tall-buildings-in-a-city-11442140/
+- residential-03.jpg: https://www.pexels.com/photo/aerial-view-of-mumbai-residential-skyscrapers-at-dusk-37834156/
+- residential-04.jpg: https://www.pexels.com/photo/green-plants-beside-the-apartment-building-6875971/
+- residential-05.jpg: https://images.unsplash.com/photo-1600596542815-ffad4c1539a9

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Account Access</string>
-    <string name="title_activity_main">Account Access</string>
+    <string name="app_name">Clovidom</string>
+    <string name="title_activity_main">Clovidom</string>
     <string name="package_name">com.accountaccess.app</string>
     <string name="custom_url_scheme">com.accountaccess.app</string>
 </resources>

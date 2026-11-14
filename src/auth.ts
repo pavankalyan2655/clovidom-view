@@ -4,16 +4,26 @@ export type AuthMode = 'login' | 'signup'
 
 export interface AuthPayload {
   fullName?: string
+  phone?: string
   email: string
   password: string
 }
 
 interface AuthResponse {
   accessToken?: string
+  authToken?: string
   token?: string
   jwt?: string
   message?: string
-  data?: AuthResponse
+  user?: AuthUser
+  data?: unknown
+}
+
+export interface AuthUser {
+  id?: string
+  fullName?: string
+  email?: string
+  role?: string
 }
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080').replace(/\/+$/, '')
@@ -33,10 +43,24 @@ function isAuthResponse(value: unknown): value is AuthResponse {
 
 function tokenFrom(value: unknown): string | undefined {
   if (!isAuthResponse(value)) return undefined
-  if (typeof value.accessToken === 'string') return value.accessToken
-  if (typeof value.token === 'string') return value.token
-  if (typeof value.jwt === 'string') return value.jwt
+
+  const directToken = [
+    value.authToken,
+    value.accessToken,
+    value.token,
+    value.jwt,
+  ].find((candidate): candidate is string => typeof candidate === 'string')
+
+  if (directToken) return directToken
+
+  if (value.data === undefined || value.data === null) return undefined
   return tokenFrom(value.data)
+}
+
+function userFrom(value: unknown): AuthUser | undefined {
+  if (!isAuthResponse(value)) return undefined
+  if (typeof value.user === 'object' && value.user !== null) return value.user
+  return value.data === undefined || value.data === null ? undefined : userFrom(value.data)
 }
 
 async function responseBody(response: Response): Promise<unknown> {
@@ -50,13 +74,16 @@ async function responseBody(response: Response): Promise<unknown> {
   }
 }
 
-async function request(path: string, init: RequestInit = {}) {
+export async function apiRequest(path: string, init: RequestInit = {}, token?: string) {
   validateNativeApiUrl()
   let response: Response
+  const headers = new Headers(init.headers)
+  if (token) headers.set('Authorization', `Bearer ${token}`)
 
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {
       ...init,
+      headers,
     })
   } catch {
     throw new Error('Could not reach the server. Check your connection and try again.')
@@ -74,17 +101,17 @@ async function request(path: string, init: RequestInit = {}) {
 }
 
 export async function authenticate(mode: AuthMode, payload: AuthPayload) {
-  return request(`/api/auth/${mode}`, {
+  const result = await apiRequest(`/api/auth/${mode}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
+  return { ...result, user: userFrom(result.data) }
 }
 
 export async function getProtectedResource(path: '/api/welcome' | '/api/user/profile', token: string) {
-  const { data } = await request(path, {
+  const { data } = await apiRequest(path, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
-  })
+  }, token)
   return data
 }
